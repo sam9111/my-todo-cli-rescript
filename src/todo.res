@@ -39,7 +39,7 @@ NOTE: The code below is provided just to show you how to use the
 date and file functions defined above. Remove it to begin your implementation.
 */
 
-Js.log("Hello! today is " ++ getToday())
+Js.log("Hello Samyuktha! today is " ++ getToday())
 
 if existsSync("todo.txt") {
   Js.log("Todo file exists.")
