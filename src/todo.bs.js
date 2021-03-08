@@ -6,6 +6,7 @@ var Os = require("os");
 var Curry = require("bs-platform/lib/js/curry.js");
 var Belt_Int = require("bs-platform/lib/js/belt_Int.js");
 var Belt_Array = require("bs-platform/lib/js/belt_Array.js");
+var Belt_Option = require("bs-platform/lib/js/belt_Option.js");
 
 var getToday = (function() {
   let date = new Date();
@@ -92,22 +93,17 @@ function ls(param) {
     }
     
   }
-  var formatted_todos = Belt_Array.mapWithIndex(todos, (function (i, todo) {
-          return "[" + String(i + 1 | 0) + "] " + todo;
+  var length = todos.length;
+  var formatted_todos = Belt_Array.reduceWithIndex(Belt_Array.reverse(todos), "", (function (acc, todo, i) {
+          return acc + ("[" + String(length - i | 0) + "] " + todo + "\n");
         }));
-  return Belt_Array.forEach(Belt_Array.reverse(formatted_todos), (function (todo) {
-                console.log(todo);
-                
-              }));
+  console.log(formatted_todos.trim());
+  
 }
 
 function getTodo(todoNumber) {
   var todos = readFromfile("todo.txt");
-  var index = Belt_Int.fromString(todoNumber);
-  if (index !== undefined) {
-    return Belt_Array.get(todos, index - 1 | 0);
-  }
-  
+  return Belt_Array.get(todos, todoNumber - 1 | 0);
 }
 
 function removeTodo(todoToremove) {
@@ -119,13 +115,17 @@ function removeTodo(todoToremove) {
 }
 
 function delTodo(todoNumber) {
-  var todoTodelete = getTodo(todoNumber);
-  if (todoTodelete !== undefined) {
-    removeTodo(todoTodelete);
-    console.log("Deleted todo #" + todoNumber);
-  } else {
-    console.log("Error: todo #" + todoNumber + " does not exist. Nothing deleted.");
+  if (todoNumber !== undefined) {
+    var todoTodelete = getTodo(todoNumber);
+    if (todoTodelete !== undefined) {
+      removeTodo(todoTodelete);
+      console.log("Deleted todo #" + String(todoNumber));
+    } else {
+      console.log("Error: todo #" + String(todoNumber) + " does not exist. Nothing deleted.");
+    }
+    return ;
   }
+  console.log("Error: Missing NUMBER for deleting todo.");
   
 }
 
@@ -145,10 +145,10 @@ function done_cmd(todoNumber) {
       removeTodo(todoTomark);
       var itemDone = "x " + Curry._1(getToday, undefined) + " " + todoTomark;
       appendTofile(itemDone, "done.txt");
-      console.log("Marked todo #" + todoNumber + " as done.");
+      console.log("Marked todo #" + String(todoNumber) + " as done.");
       return ;
     }
-    console.log("Error: todo #" + todoNumber + " does not exist.");
+    console.log("Error: todo #" + String(todoNumber) + " does not exist.");
     return ;
   }
   console.log("Error: Missing NUMBER for marking todo as done.");
@@ -162,13 +162,13 @@ function report(param) {
   
 }
 
-var $$arguments = Belt_Array.map((process.argv.slice(2)), (function (argument) {
+var $$arguments = Belt_Array.map(process.argv, (function (argument) {
         return argument.trim();
       }));
 
-var command = Belt_Array.get($$arguments, 0);
+var command = Belt_Array.get($$arguments, 2);
 
-var inputs = Belt_Array.slice($$arguments, 1, $$arguments.length);
+var inputs = Belt_Array.slice($$arguments, 3, $$arguments.length);
 
 function command_switch(command, inputs) {
   if (command !== undefined) {
@@ -176,9 +176,9 @@ function command_switch(command, inputs) {
       case "add" :
           return add(inputs);
       case "del" :
-          return del(inputs);
+          return del(Belt_Array.map(inputs, Belt_Int.fromString));
       case "done" :
-          return done_cmd(Belt_Array.get(inputs, 0));
+          return done_cmd(Belt_Option.flatMap(Belt_Array.get(inputs, 0), Belt_Int.fromString));
       case "help" :
           console.log("Usage :-\n$ ./todo add \"todo item\"  # Add a new todo\n$ ./todo ls               # Show remaining todos\n$ ./todo del NUMBER       # Delete a todo\n$ ./todo done NUMBER      # Complete a todo\n$ ./todo help             # Show usage\n$ ./todo report           # Statistics");
           return ;

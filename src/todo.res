@@ -34,41 +34,37 @@ external writeFileSync: (string, string, fsConfig) => unit = "writeFileSync"
 
 let encoding = "utf8"
 
-
-
-
 //reading file contents
 
-let readFromfile: string => array<string> = filename =>{
-  if !existsSync(filename){
+let readFromfile: string => array<string> = filename => {
+  if !existsSync(filename) {
     []
-  }
-  else{
-    let read_string: string= Js.String.trim(
-      readFileSync(filename,{encoding: encoding,flag: "r"}))
-    Js.String.split(eol,read_string)
+  } else {
+    let read_string: string = Js.String.trim(
+      readFileSync(filename, {encoding: encoding, flag: "r"}),
+    )
+    Js.String.split(eol, read_string)
   }
 }
 
 //truncating and overwriting file contents
 
-let writeTofile: (array<string>,string) => unit = (text,filename) =>{
-  let new_contents: string=text->Belt.Array.reduce("",
-    (lines,line) =>lines++line++eol)
-  writeFileSync(filename,new_contents,{encoding: encoding,flag: "w"})
+let writeTofile: (array<string>, string) => unit = (text, filename) => {
+  let new_contents: string = text->Belt.Array.reduce("", (lines, line) => lines ++ line ++ eol)
+  writeFileSync(filename, new_contents, {encoding: encoding, flag: "w"})
 }
 
 //appending to file contents
 
-let appendTofile: (string,string) => unit = (line,filename) =>{
-  let line=line++eol
-  appendFileSync(filename,line,{encoding: encoding,flag: "a"})
+let appendTofile: (string, string) => unit = (line, filename) => {
+  let line = line ++ eol
+  appendFileSync(filename, line, {encoding: encoding, flag: "a"})
 }
 
 //Help
 
-let help: unit => unit=()=>{
-Js.log("Usage :-
+let help: unit => unit = () => {
+  Js.log("Usage :-
 $ ./todo add \"todo item\"  # Add a new todo
 $ ./todo ls               # Show remaining todos
 $ ./todo del NUMBER       # Delete a todo
@@ -79,128 +75,132 @@ $ ./todo report           # Statistics")
 
 //Add new single or multiple todos
 
-let add: array<string> => unit= todos =>{
+let add: array<string> => unit = todos => {
   switch todos {
-    |[]|[""] => Js.log("Error: Missing todo string. Nothing added!")
-    |items =>{
-      items->
-      Belt.Array.forEach(
-        item=>{
-          appendTofile(item,"todo.txt")
-          Js.log(`Added todo: "${item}"`)
-        }
-      )
-    }
+  | [] | [""] => Js.log("Error: Missing todo string. Nothing added!")
+  | items =>
+    items->Belt.Array.forEach(item => {
+      appendTofile(item, "todo.txt")
+      Js.log(`Added todo: "${item}"`)
+    })
   }
 }
 
 //List all pending todos
 
-let ls: unit => unit=()=>{
-  let todos: array<string> =readFromfile("todo.txt")
-  switch todos{
-    |[]|[""] => Js.log("There are no pending todos!")
-    |someTodos =>{
-      let formatted_todos: array<string> =someTodos->
-        Belt.Array.mapWithIndex(
-          (i,todo)=>{
-            `[${Belt.Int.toString(i+1)}] ${todo}`
-          })
+let ls: unit => unit = () => {
+  let todos: array<string> = readFromfile("todo.txt")
+  switch todos {
+  | [] | [""] => Js.log("There are no pending todos!")
+  | someTodos => {
+      let length = Belt.Array.length(someTodos)
 
-      Belt.Array.forEach(
-        Belt.Array.reverse(formatted_todos),
-          todo=> Js.log(todo)
-      )
+      let formatted_todos: string =
+        someTodos
+        ->Belt.Array.reverse
+        ->Belt.Array.reduceWithIndex("", (acc, todo, i) => {
+          acc ++ `[${Belt.Int.toString(length - i)}] ${todo}\n`
+        })
+      Js.log(Js.String.trim(formatted_todos))
     }
   }
 }
 
 //get todo from "todo.txt"
 
-let getTodo: string => option<string> =todoNumber=>{
-   let todos: array<string> =readFromfile("todo.txt")
-   let index: option<int> = Belt.Int.fromString(todoNumber)
-   switch index{
-    |None => None
-    |Some(i) =>Belt.Array.get(todos, i-1)
-    }
+let getTodo: int => option<string> = todoNumber => {
+  let todos: array<string> = readFromfile("todo.txt")
+  Belt.Array.get(todos, todoNumber - 1)
 }
 //remove todo from "todo.txt"
 
-let removeTodo: string => unit =todoToremove=>{
-  let todos: array<string> =readFromfile("todo.txt")
-  let updated_content: array<string> =Js.Array.filter(todo=>todo!=todoToremove,todos)
-  writeTofile(updated_content,"todo.txt")
+let removeTodo: string => unit = todoToremove => {
+  let todos: array<string> = readFromfile("todo.txt")
+  let updated_content: array<string> = Js.Array.filter(todo => todo != todoToremove, todos)
+  writeTofile(updated_content, "todo.txt")
 }
 
 //Delete single todo from "todo.txt"
 
-let delTodo: string => unit=todoNumber=>{
-  let todoTodelete: option<string> =getTodo(todoNumber)
-  switch todoTodelete{
-    |None => Js.log(`Error: todo #${todoNumber} does not exist. Nothing deleted.`)
-    |Some(deleted_todo)=>{
-      removeTodo(deleted_todo)
-      Js.log(`Deleted todo #${todoNumber}`)
+let delTodo: option<int> => unit = todoNumber => {
+  switch todoNumber {
+  | None => Js.log("Error: Missing NUMBER for deleting todo.")
+  | Some(number) =>
+    let todoTodelete: option<string> = getTodo(number)
+    switch todoTodelete {
+    | None => Js.log(`Error: todo #${Belt.Int.toString(number)} does not exist. Nothing deleted.`)
+    | Some(deleted_todo) => {
+        removeTodo(deleted_todo)
+        Js.log(`Deleted todo #${Belt.Int.toString(number)}`)
+      }
     }
   }
 }
 //Delete todos from "todo.txt"
-let del: array<string> => unit=todoNumber=>{
-  switch todoNumber{
-    |[] => Js.log("Error: Missing NUMBER for deleting todo.")
-    |someNumbers =>{
-      someNumbers->Belt.Array.forEach(
-        number=>delTodo(number)
-      )
-    }
+let del: array<option<int>> => unit = todoNumber => {
+  switch todoNumber {
+  | [] => Js.log("Error: Missing NUMBER for deleting todo.")
+  | someNumbers => someNumbers->Belt.Array.forEach(number => delTodo(number))
   }
 }
 
 //Mark a todo item as completed
 
-let done_cmd: option<string> => unit=todoNumber=>{
-  switch todoNumber{
-    |None => Js.log(`Error: Missing NUMBER for marking todo as done.`)
-    |Some(number)=>{
-      let todoTomark: option<string>=getTodo(number)
-      switch todoTomark{
-          |None => Js.log(`Error: todo #${number} does not exist.`)
-          |Some(marked_todo)=>{
-            removeTodo(marked_todo)
-            let itemDone: string=`x ${getToday()} ${marked_todo}`
-            appendTofile(itemDone,"done.txt")
-            Js.log(`Marked todo #${number} as done.`)
-          }
+let done_cmd: option<int> => unit = todoNumber => {
+  switch todoNumber {
+  | None => Js.log(`Error: Missing NUMBER for marking todo as done.`)
+  | Some(number) => {
+      let todoTomark: option<string> = getTodo(number)
+      switch todoTomark {
+      | None => Js.log(`Error: todo #${Belt.Int.toString(number)} does not exist.`)
+      | Some(marked_todo) => {
+          removeTodo(marked_todo)
+          let itemDone: string = `x ${getToday()} ${marked_todo}`
+          appendTofile(itemDone, "done.txt")
+          Js.log(`Marked todo #${Belt.Int.toString(number)} as done.`)
+        }
       }
     }
   }
 }
 
 //Generate report
-let report: unit => unit=()=>{
-  let pending: int=Belt.Array.length(readFromfile("todo.txt"))
-  let completed: int=Belt.Array.length(readFromfile("done.txt"))
+let report: unit => unit = () => {
+  let pending: int = Belt.Array.length(readFromfile("todo.txt"))
+  let completed: int = Belt.Array.length(readFromfile("done.txt"))
   Js.log(
-    `${getToday()} Pending : ${Belt.Int.toString(pending)} Completed : ${Belt.Int.toString(completed)}`
+    `${getToday()} Pending : ${Belt.Int.toString(pending)} Completed : ${Belt.Int.toString(
+        completed,
+      )}`,
   )
 }
 
-let arguments: array<string> =%raw(`process.argv.slice(2)`)->Belt.Array.map(
-  argument=>Js.String.trim(argument)
+@val @scope("process") external argv: array<string> = "argv"
+
+let arguments = argv->Belt.Array.map(argument => Js.String.trim(argument))
+
+let command: option<string> = Belt.Array.get(arguments, 2)
+let inputs: array<string> = Belt.Array.slice(
+  arguments,
+  ~offset=3,
+  ~len=Belt.Array.length(arguments),
 )
-let command: option<string> =Belt.Array.get(arguments,0)
-let inputs: array<string> =Belt.Array.slice(arguments,~offset=1,~len=Belt.Array.length(arguments))
-let command_switch: (option<string>,array<string>) => unit = (command,inputs)=> {
+let command_switch: (option<string>, array<string>) => unit = (command, inputs) => {
   switch command {
-    |Some("add")=>add(inputs)
-    |Some("ls")=>ls()
-    |Some("del")=>del(inputs)
-    |Some("done")=>done_cmd(Belt.Array.get(inputs,0))
-    |Some("report")=>report()
-    |Some("help")
-    |Some(_)
-    |None=> help()
+  | Some("add") => add(inputs)
+  | Some("ls") => ls()
+  | Some("del") => del(Belt.Array.map(inputs, input => Belt.Int.fromString(input)))
+  | Some("done") =>
+    done_cmd(
+      Belt.Array.get(inputs, 0)->Belt.Option.flatMap(numberString =>
+        Belt.Int.fromString(numberString)
+      ),
+    )
+  | Some("report") => report()
+  | Some("help")
+  | Some(_)
+  | None =>
+    help()
   }
 }
-command_switch(command,inputs)
+command_switch(command, inputs)
