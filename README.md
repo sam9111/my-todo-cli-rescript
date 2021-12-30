@@ -1,3 +1,5 @@
+> Learnings from the "Web Development 301 - Typed Functional Programming" course as part of the Coronasafe Engineering Fellowship 2020
+
 Begin by running `npm install`.
 
 You are expected to write the code in `src/todo.res` file.
